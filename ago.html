@@ -1,0 +1,504 @@
+<script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+
+<script src="https://cdn.datatables.net/2.1.5/js/dataTables.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.dataTables.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.5/js/dataTables.bootstrap5.js"></script>
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.1.5/css/dataTables.bootstrap5.css" />
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/3.1.2/css/buttons.dataTables.css" />
+<fieldset>
+    <p class="h6 desc pb-2" style="font-weight: bold;">SELECT TYPE</p>
+    <div class="row pb-2">
+        <div class="col-md-3 col-sm-12">
+            <label><input type="radio" name="b" value="b2" /> SPECIFIC BRAND</label>
+        </div>
+    </div>
+    <div class="row pb-2">
+        <div class="col-md-3 col-sm-12">
+            <label><input type="radio" name="b" value="b3" checked /> SPECIFIC SKU</label>
+        </div>
+    </div>
+    <div class="row pb-2">
+        <div class="col-md-6 col-sm-12">
+            <textarea id="txt_sku" name="txt_sku" style="width: 100%; font-size: 0.825rem; height: 150px;"></textarea>
+        </div>
+    </div>
+
+    <p class="h6 desc" style="font-weight: bold;">SELECT TO VIEW</p>
+    <div class="row">
+        <div class="col-md-2">
+            <label><input type="checkbox" id="view_stock" name="checkdata" value="1" checked /> STOCK</label>
+        </div>
+        <div class="col-md-2">
+            <label><input type="checkbox" id="view_oos" name="checkdata" value="2" checked /> OUT OF STOCK</label>
+        </div>
+        <div class="col-md-2">
+            <label><input type="checkbox" id="view_na" name="checkdata" value="3" checked /> UNKNOWN</label>
+        </div>
+    </div>
+</fieldset>
+
+<div class="mt-2">
+    <input type="submit" value="GENERATE" class="btn btn-success btn_submit" style="font-weight: bold;" /> <input
+        type="submit" value="CLEAR" class="btn btn-secondary btn_clear" />
+</div>
+<div style="margin-bottom: 30px;"></div>
+
+<div id="wrap_found">
+    <p class="h6 head_stock" style="font-weight: bold;"><span class="found_no"></span> STOCK <i>(is_in_stock: true)</i>
+    </p>
+    <table id="found" class="table table-bordered table-hover" width="100%">
+        <thead class="table-success" style="font-weight: bold; text-align: center;">
+            <tr>
+                <th>NO.</th>
+                <th>IMAGE</th>
+                <th>BRAND</th>
+                <th>SKU</th>
+                <th>PARENT</th>
+                <th>NAME</th>
+                <th>NORMAL PRICE</th>
+                <th>MARK DOWN</th>
+                <th>FINAL PRICE</th>
+                <th>STOCK</th>
+                <th>DISPLAY FRONTEND</th>
+                <th>LAST UPDATE</th>
+            </tr>
+        </thead>
+
+    </table>
+</div>
+
+<div style="margin-bottom: 30px;"></div>
+
+<div id="wrap_notfound">
+    <p class="h6 head_oos" style="font-weight: bold;"><span class="not_found_no"></span> OUT OF STOCK <i>(is_in_stock:
+            false)</i></p>
+    <table id="not_found" class="table table-bordered table-hover" width="100%">
+        <thead class="table-danger" style="font-weight: bold; text-align: center;">
+            <tr>
+                <th>NO.</th>
+                <th>IMAGE</th>
+                <th>BRAND</th>
+                <th>SKU</th>
+                <th>PARENT</th>
+                <th>NAME</th>
+                <th>NORMAL PRICE</th>
+                <th>MARK DOWN</th>
+                <th>FINAL PRICE</th>
+                <th>STOCK</th>
+                <th>DISPLAY FRONTEND</th>
+                <th>LAST UPDATE</th>
+            </tr>
+        </thead>
+
+    </table>
+</div>
+
+<div style="margin-bottom: 30px;"></div>
+
+<div id="wrap_oos">
+    <p class="h6 head_na" style="font-weight: bold;"><span class="na_no"></span> UNKNOWN <i>(Stock attribute is missing
+            / Algolia sync issue)</i></p>
+    <table id="na" class="table table-bordered table-hover" width="100%">
+        <thead class="table-warning" style="font-weight: bold; text-align: center;">
+            <tr>
+                <th>NO.</th>
+                <th>IMAGE</th>
+                <th>BRAND</th>
+                <th>SKU</th>
+                <th>PARENT</th>
+                <th>NAME</th>
+            </tr>
+        </thead>
+
+    </table>
+</div>
+
+<script>
+
+    $(function () {
+
+    });
+
+    $(document).ready(function () {
+
+        $.noConflict();
+
+        $(".btn_clear").click(function () {
+            table_found.clear().draw();
+
+            table_notfound.clear().draw();
+
+            table_na.clear().draw();
+
+            $('#brand').val(null).trigger('change');
+
+            $(".total span").text("");
+            $(".found_no").text("");
+            $(".not_found_no").text("");
+            $(".na_no").text("");
+            $("#txt_sku").val("");
+            $(".process").html("");
+            result = "";
+        });
+
+        $(".btn_submit").click(function () {
+            table_found.clear().draw();
+            table_notfound.clear().draw();
+            table_na.clear().draw();
+
+            $(".total span").text("");
+            $(".found_no").text("");
+            $(".not_found_no").text("");
+            $(".na_no").text("");
+            $(".process").html("");
+            result = "";
+
+            if ($('input[name="b"]:checked').val() == "b2") {
+                if ($("#view_stock").is(":checked") || $("#view_oos").is(":checked") || $("#view_na").is(":checked")) {
+                    $(".select2 .select2-selection__rendered li").each(function () {
+                        ExecuteSKUList("brand_id: " + $(this).attr("data-brand-id"));
+                    });
+                } else {
+                    alert("Please select data and try again!");
+                }
+            } else if ($('input[name="b"]:checked').val() == "b3") {
+                var lines = $("#txt_sku").val().trim();
+                if (lines) {
+                    lines = lines.replace(/[\r\n]/gm, ",").replace(/,\s*/g, ",").replace(/\s\s+/g, ",").replace(/\s+/g, ",").replace(/\"/g, "");
+                    lines = $.trim(lines).split(",");
+
+                    result = lines.map(function (sku) {
+                        if (sku.toLowerCase().includes("gr")) {
+                            return "parent_sku:" + sku;
+                        } else {
+                            return "sku:" + sku;
+                        }
+                    }).join(" OR ");
+
+                    ExecuteSKUList(result);
+                    console.log(result);
+                } else {
+                    alert("Please input value first and try again!");
+                }
+            }
+        });
+
+
+        $(".brand").css("display", "none");
+
+        var table_found = $("#found").DataTable({
+            pageLength: 25,
+            responsive: true,
+
+            layout: {
+                topStart: {
+                    buttons: ["copy", "csv", "excel", "print"],
+                },
+            },
+
+            columnDefs: [
+                { width: "1%", targets: 0 },
+                { width: "1%", targets: 1 },
+                { width: "3%", targets: 2 },
+                { width: "3%", targets: 3 },
+                { width: "3%", targets: 4 },
+                { width: "8%", targets: 5 },
+                { width: "1%", targets: 6 },
+                { width: "1%", targets: 7 },
+                { width: "1%", targets: 8 },
+                { width: "1%", targets: 9 },
+                { width: "1%", targets: 10 },
+                { width: "1%", targets: 11 },
+            ],
+
+            columns: [
+                {
+                    data: null,
+                    sortable: false,
+                    render: function (data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    }
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.image_url) return "";
+                        return '<a href="/' + data.url_key + '" target="_blank"><img src="https://assets.central.co.th/' + data.image_url + '" width="100%" height="auto"></a>';
+                    }
+                },
+                { data: "brand_name" },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.sku) return "";
+                        return '<a href="/' + data.url_key + '" target="_blank">' + data.sku + "</a>";
+                    }
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.parent_sku) {
+                            return "";
+                        }
+                        return data.parent_sku;
+                    }
+                },
+                { data: "name" },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        return formatter.format(data.price).replace(/\D00$/, "");
+                    }
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        return formatter.format(data.discount_amount).replace(/\D00$/, "") + "<br>" + Math.trunc(data.discount_percentage) + "%";
+                    }
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        return formatter.format(data.final_price).replace(/\D00$/, "");
+                    }
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        return data.stock.is_in_stock ? "Yes" : "No";
+                    }
+                },
+                { data: "visibility" },
+                { data: "algoliaLastUpdateAtCET" }
+            ]
+            ,
+        });
+        var table_notfound = $("#not_found").DataTable({
+            pageLength: 25,
+            responsive: true,
+
+            layout: {
+                topStart: {
+                    buttons: ["copy", "csv", "excel", "print"],
+                },
+            },
+
+            columnDefs: [
+                { width: "1%", targets: 0 },
+                { width: "1%", targets: 1 },
+                { width: "3%", targets: 2 },
+                { width: "3%", targets: 3 },
+                { width: "3%", targets: 4 },
+                { width: "8%", targets: 5 },
+                { width: "1%", targets: 6 },
+                { width: "1%", targets: 7 },
+                { width: "1%", targets: 8 },
+                { width: "1%", targets: 9 },
+                { width: "1%", targets: 10 },
+                { width: "1%", targets: 11 },
+            ],
+
+            columns: [
+                {
+                    data: null,
+                    sortable: false,
+                    render: function (data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    },
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.image_url) {
+                            return "";
+                        }
+                        return '<a href="/' + data.url_key + '" target="_blank"><img src="https://assets.central.co.th/' + data.image_url + '" width="100%" height="auto"></a>';
+                    },
+                },
+                { data: "brand_name" },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.sku) {
+                            return "";
+                        }
+                        return '<a href="/' + data.url_key + '" target="_blank">' + data.sku + "</a>";
+                    },
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.parent_sku) {
+                            return "";
+                        }
+                        return data.parent_sku;
+                    },
+                },
+                { data: "name" },
+
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.price) {
+                            return "";
+                        }
+                        return formatter.format(data.price).replace(/\D00$/, "");
+                    },
+                },
+
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.discount_amount) {
+                            return "";
+                        }
+                        return formatter.format(data.discount_amount).replace(/\D00$/, "") + "<br>" + Math.trunc(data.discount_percentage) + "%";
+                    },
+                },
+
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.final_price) {
+                            return "";
+                        }
+                        return formatter.format(data.final_price).replace(/\D00$/, "");
+                    },
+                },
+
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.stock.is_in_stock) {
+                            return "";
+                        }
+                        if (data.stock.is_in_stock == true) {
+                            return "Yes";
+                        } else {
+                            return "No";
+                        }
+                    },
+                },
+                { data: "visibility" },
+                { data: "algoliaLastUpdateAtCET" },
+            ],
+        });
+        var table_na = $("#na").DataTable({
+            pageLength: 25,
+            responsive: true,
+
+            layout: {
+                topStart: {
+                    buttons: ["copy", "csv", "excel", "print"],
+                },
+            },
+
+            columnDefs: [
+                { width: "1%", targets: 0 },
+                { width: "1%", targets: 1 },
+                { width: "3%", targets: 2 },
+                { width: "3%", targets: 3 },
+                { width: "3%", targets: 4 },
+                { width: "20%", targets: 5 },
+
+            ],
+
+            columns: [
+                {
+                    data: null,
+                    sortable: false,
+                    render: function (data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    },
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.image_url) {
+                            return "";
+                        }
+                        return '<a href="/' + data.url_key + '" target="_blank"><img src="https://assets.central.co.th/' + data.image_url + '" width="100%" height="auto"></a>';
+                    },
+                },
+                { data: "brand_name" },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.sku) {
+                            return "";
+                        }
+                        return '<a href="/' + data.url_key + '" target="_blank">' + data.sku + "</a>";
+                    },
+                },
+                {
+                    data: null,
+                    render: function (data, type) {
+                        if (!data.parent_sku) {
+                            return "";
+                        }
+                        return data.parent_sku;
+                    },
+                },
+                { data: "name" },
+
+
+            ],
+        });
+        var formatter = new Intl.NumberFormat("TH", {
+            style: "currency",
+            currency: "THB",
+        });
+
+        console.clear();
+
+        function ExecuteSKUList(result) {
+            var requestData = {
+                requests: [
+                    {
+                        indexName: "cds_en_products_recommened_sort_order_desc",
+                        params: `distinct=true&filters=${result}&hitsPerPage=1000000`
+                    }
+                ],
+                apiKey: "4e54e0448663400fb173d25f74e622fe",
+                appID: "JL22XXDCS9"
+            };
+
+            fetch("https://jl22xxdcs9-dsn.algolia.net/1/indexes/*/queries", {
+                method: "POST",
+                body: JSON.stringify(requestData),
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json; charset=UTF-8",
+                    "X-Algolia-API-Key": "4e54e0448663400fb173d25f74e622fe",
+                    "X-Algolia-Application-Id": "JL22XXDCS9"
+                }
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    var products = data.results[0].hits;
+
+                    products.forEach((product) => {
+                        if (product.hasOwnProperty("stock")) {
+                            if (product.stock.hasOwnProperty("is_in_stock")) {
+                                if (product.stock.is_in_stock && $("#view_stock").is(":checked")) {
+                                    table_found.row.add(product).draw(false);
+                                } else if (!product.stock.is_in_stock && $("#view_oos").is(":checked")) {
+                                    table_notfound.row.add(product).draw(false);
+                                }
+                            }
+                        } else if ($("#view_na").is(":checked")) {
+                            table_na.row.add(product).draw(false);
+                        }
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error fetching data from Algolia:', error);
+                });
+        }
+    });
+</script>
